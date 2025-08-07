@@ -1,66 +1,41 @@
 import sys
 import os
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import split, explode
+import time
 
-# Step 1: Create a Spark session
-def create_spark_session():
-    return SparkSession.builder.appName("ETL-Transform").getOrCreate()
+# Allow import from utility
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utility.utility import setup_logger, format_seconds
 
-# Step 2: Load extracted data and write cleaned parquet files
-def load_and_clean_data(spark, input_dir, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
+def main(username, password, host, db, port, logger):
+    logger.info("Starting Transform Module")
 
-    # Load CSV with inferred schema (fixes column mismatch)
-    artists_df = spark.read.option("header", True).csv(os.path.join(input_dir, "artists.csv"))
-    tracks_df = spark.read.option("header", True).csv(os.path.join(input_dir, "tracks.csv"))
+    # Simulated database logic
+    logger.debug(f"Connecting to DB '{db}' at {host}:{port} as user '{username}'")
 
-    # Drop duplicates and nulls
-    artists_df = artists_df.dropDuplicates(["id"]).na.drop(subset=["id"])
-    tracks_df = tracks_df.dropDuplicates(["id"]).na.drop(subset=["id"])
+    # Simulated transform process
+    logger.info("Performing transformation...")
+    time.sleep(2)  # simulate some processing
 
-    # Rename track id to avoid conflict with artist id later
-    tracks_df = tracks_df.withColumnRenamed("id", "track_id")
+    logger.info("Transformation completed successfully.")
 
-    # Write parquet
-    artists_df.write.mode("overwrite").parquet(os.path.join(output_dir, "artists"))
-    tracks_df.write.mode("overwrite").parquet(os.path.join(output_dir, "tracks"))
-
-    return artists_df, tracks_df
-
-# Step 3: Create master table
-def create_master_table(artists_df, tracks_df, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Rename conflicting columns in artists_df to avoid duplicate names
-    artists_df = artists_df.withColumnRenamed("name", "artist_name") \
-                           .withColumnRenamed("popularity", "artist_popularity")
-
-    # Rename conflicting columns in tracks_df to avoid duplicate names
-    tracks_df = tracks_df.withColumnRenamed("name", "track_name") \
-                         .withColumnRenamed("popularity", "track_popularity")
-
-    # Explode id_artists column
-    tracks_exploded = tracks_df.withColumn("artist_id", explode(split(tracks_df["id_artists"], ",")))
-
-    # Join with artists on artist_id
-    master_df = tracks_exploded.join(artists_df, tracks_exploded.artist_id == artists_df.id, "left")
-
-    # Write master parquet
-    master_df.write.mode("overwrite").parquet(os.path.join(output_dir, "master"))
-
-# Main execution
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python transform/execute.py <input_dir> <output_dir>")
+    if len(sys.argv) != 6:
+        print("Expected 5 arguments: host db port username password")
         sys.exit(1)
 
-    input_dir = sys.argv[1]
-    output_dir = sys.argv[2]
+    host, db, port, username, password = sys.argv[1:6]
 
-    spark = create_spark_session()
+    # Set up logger specific for transform module
+    log_file = os.path.join(os.path.dirname(__file__), "transform.log")
+    logger = setup_logger(log_file)
 
-    artists_df, tracks_df = load_and_clean_data(spark, input_dir, output_dir)
-    create_master_table(artists_df, tracks_df, output_dir)
+    start_time = time.time()
 
-    print("Transformation completed successfully!")
+    try:
+        main(username, password, host, db, port, logger)
+    except Exception as e:
+        logger.error(f"Transform module failed: {e}")
+        sys.exit(1)
+
+    end_time = time.time()
+    logger.info(f"Execution Time: {format_seconds(int(end_time - start_time))}")

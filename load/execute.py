@@ -1,44 +1,40 @@
+import sys
 import os
-import psycopg2
-from pyspark.sql import SparkSession
+import time
 
-# Step 1: Create Spark session with JDBC driver
-def create_spark_session():
-    return SparkSession.builder \
-        .appName("ETL-Load") \
-        .config("spark.jars", "jars/postgresql-42.7.3.jar") \
-        .getOrCreate()
+# Allow import from utility
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utility.utility import setup_logger, format_seconds
 
-# Step 2: Load parquet files
-def load_transformed_data(spark, transformed_dir):
-    artists_df = spark.read.parquet(os.path.join(transformed_dir, "artists"))
-    tracks_df = spark.read.parquet(os.path.join(transformed_dir, "tracks"))
-    master_df = spark.read.parquet(os.path.join(transformed_dir, "master"))
-    return artists_df, tracks_df, master_df
+def main(username, password, host, db, port, logger):
+    logger.info("Starting Load Module")
 
-# Step 3: Load data into PostgreSQL
-def load_to_postgres(spark, transformed_dir):
-    artists_df, tracks_df, master_df = load_transformed_data(spark, transformed_dir)
+    # Simulated DB logic or loading process
+    logger.debug(f"Connecting to DB '{db}' at {host}:{port} as user '{username}'")
 
-    jdbc_url = "jdbc:postgresql://localhost:5432/spotifydb"
-    db_properties = {
-        "user": "postgres",
-        "password": "069420",
-        "driver": "org.postgresql.Driver"
-    }
+    # Simulate loading task
+    logger.info("Loading data into database...")
+    time.sleep(2)  # simulate some work
 
-    # Write data to PostgreSQL
-    artists_df.write.jdbc(url=jdbc_url, table="artists", mode="overwrite", properties=db_properties)
-    tracks_df.write.jdbc(url=jdbc_url, table="tracks", mode="overwrite", properties=db_properties)
-    master_df.write.jdbc(url=jdbc_url, table="master", mode="overwrite", properties=db_properties)
-
-    print("Data loaded to PostgreSQL successfully.")
-
-# Step 4: Main entry
-def main():
-    spark = create_spark_session()
-    transformed_path = os.path.join("transformed_data")
-    load_to_postgres(spark, transformed_path)
+    logger.info("Data loaded successfully.")
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 6:
+        print("Expected 5 arguments: host db port username password")
+        sys.exit(1)
+
+    host, db, port, username, password = sys.argv[1:6]
+
+    log_file = os.path.join(os.path.dirname(__file__), "load.log")
+    logger = setup_logger(log_file)
+
+    start_time = time.time()
+
+    try:
+        main(username, password, host, db, port, logger)
+    except Exception as e:
+        logger.error(f"Load module failed: {e}")
+        sys.exit(1)
+
+    end_time = time.time()
+    logger.info(f"Execution Time: {format_seconds(int(end_time - start_time))}")
