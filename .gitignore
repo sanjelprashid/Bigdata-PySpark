@@ -1,0 +1,28 @@
+# Python cache & logs
+__pycache__/
+*.py[cod]
+*.log
+
+# Environment folders
+.venv/
+env/
+ENV/
+venv/
+
+# VSCode project config
+.vscode/
+
+# Data artifacts
+*.csv
+*.json
+artifacts/
+extracted_data/
+transformed_data/
+jars/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter notebooks (if used)
+.ipynb_checkpoints/
